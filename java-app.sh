@@ -76,12 +76,17 @@ deploy() {
     fi
 
     # Restart the service
-    sudo -n systemctl restart java-app.service
+    if ! sudo -n systemctl restart java-app.service; then
+        echo "Failed to restart java-app.service. Deployment failed!" | tee -a ${LOG_FILE}
+        rollback
+        exit 1
+    fi
 
     # Check if the service started successfully
     if ! sudo -n systemctl is-active --quiet java-app.service; then
         echo "Deployment of version $1 failed! Rolling back..." | tee -a ${LOG_FILE}
         rollback
+        exit 1
     else
         echo "Deployment of version $1 succeeded!" | tee -a ${LOG_FILE}
     fi
