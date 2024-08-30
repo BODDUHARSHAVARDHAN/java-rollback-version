@@ -50,7 +50,7 @@ rollback() {
 
     # Extract version number from the previous JAR file
     PREVIOUS_VERSION=$(extract_version ${PREVIOUS_JAR})
-    echo "Rolling back to previous version: ${PREVIOUS_JAR} (${PREVIOUS_VERSION})" | tee -a ${LOG_FILE}
+    echo "Rolling back to previous version: ${PREVIOUS_JAR} (Version: ${PREVIOUS_VERSION})" | tee -a ${LOG_FILE}
     sudo -n ln -sf ${PREVIOUS_JAR} "${JAR_PATH}/demo-latest.jar"
     update_systemd_config ${PREVIOUS_JAR}
     sudo -n systemctl restart java-app.service
