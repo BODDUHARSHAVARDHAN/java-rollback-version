@@ -10,7 +10,7 @@ get_versions() {
     # Get the latest and previous JAR files
     LATEST_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 1)  # Most recent JAR file
     PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 2 | tail -n 1)  # Second most recent JAR file
-    
+
     # Extract version numbers from filenames
     if [ -n "$LATEST_JAR" ]; then
         LATEST_VERSION=$(basename ${LATEST_JAR} | sed -E 's/demo-(.*)-SNAPSHOT.jar/\1/')
@@ -81,13 +81,18 @@ deploy() {
 
     get_versions
 
-    # Update symbolic links and backups
-    echo "Deploying new version: ${NEW_VERSION_JAR}" | tee -a ${LOG_FILE}
-    if [ -n "$LATEST_JAR" ]; then
+    # Check if this is the first deployment or if we need to update links
+    if [ -z "$LATEST_JAR" ]; then
+        # First deployment
+        echo "First deployment: Linking ${NEW_VERSION_JAR} as the latest version." | tee -a ${LOG_FILE}
+        sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"
+    else
+        # Backup the current latest as previous
+        echo "Deploying new version: ${NEW_VERSION_JAR}" | tee -a ${LOG_FILE}
         sudo -n mv ${LATEST_JAR} ${JAR_PATH}/demo-previous.jar  # Backup the current latest as previous
+        sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"  # Set new jar as the latest
     fi
-    sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"  # Set new jar as the latest
-    
+
     update_systemd_config ${NEW_VERSION_JAR}
 
     # Start or restart the service
