@@ -7,13 +7,22 @@ LOG_FILE="/var/log/java-app-deployment.log"
 
 # Function to get the latest and previous JAR files
 get_versions() {
-    # Get the latest and second latest JAR files
+    # Get the latest and previous JAR files
     LATEST_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 1)  # Most recent JAR file
     PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 2 | tail -n 1)  # Second most recent JAR file
     
-    # Extract version numbers
-    LATEST_VERSION=$(basename ${LATEST_JAR} | sed 's/demo-\(.*\)-SNAPSHOT.jar/\1/')
-    PREVIOUS_VERSION=$(basename ${PREVIOUS_JAR} | sed 's/demo-\(.*\)-SNAPSHOT.jar/\1/')
+    # Extract version numbers from filenames
+    if [ -n "$LATEST_JAR" ]; then
+        LATEST_VERSION=$(basename ${LATEST_JAR} | sed -E 's/demo-(.*)-SNAPSHOT.jar/\1/')
+    else
+        LATEST_VERSION=""
+    fi
+
+    if [ -n "$PREVIOUS_JAR" ]; then
+        PREVIOUS_VERSION=$(basename ${PREVIOUS_JAR} | sed -E 's/demo-(.*)-SNAPSHOT.jar/\1/')
+    else
+        PREVIOUS_VERSION=""
+    fi
 }
 
 # Function to update systemd configuration
