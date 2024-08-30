@@ -5,25 +5,9 @@ JAR_PATH="/opt/java-app"
 SERVICE_FILE="/etc/systemd/system/java-app.service"
 LOG_FILE="/var/log/java-app-deployment.log"
 
-# Function to get the latest and previous JAR files
-get_versions() {
-    # Get the latest and previous JAR files
-    LATEST_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 1)  # Most recent JAR file
-    PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 2 | tail -n 1)  # Second most recent JAR file
-
-    # Extract version numbers from filenames
-    if [ -n "$LATEST_JAR" ]; then
-        LATEST_VERSION=$(basename ${LATEST_JAR} | sed -E 's/demo-(.*)-SNAPSHOT.jar/\1/')
-    else
-        LATEST_VERSION=""
-    fi
-
-    if [ -n "$PREVIOUS_JAR" ]; then
-        PREVIOUS_VERSION=$(basename ${PREVIOUS_JAR} | sed -E 's/demo-(.*)-SNAPSHOT.jar/\1/')
-    else
-        PREVIOUS_VERSION=""
-    fi
-}
+# Detect the latest and previous JAR files
+LATEST_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 1)  # Most recent JAR file
+PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 2 | tail -n 1)  # Second most recent JAR file
 
 # Function to update systemd configuration
 update_systemd_config() {
@@ -50,19 +34,18 @@ EOL
 
 # Function to handle rollback
 rollback() {
-    get_versions
     if [ -z "$PREVIOUS_JAR" ]; then
         echo "No previous version available for rollback. Manual intervention required." | tee -a ${LOG_FILE}
         exit 1
     fi
 
-    echo "Rolling back to previous version: ${PREVIOUS_JAR} (Version: ${PREVIOUS_VERSION})" | tee -a ${LOG_FILE}
+    echo "Rolling back to previous version: ${PREVIOUS_JAR}" | tee -a ${LOG_FILE}
     sudo -n ln -sf ${PREVIOUS_JAR} "${JAR_PATH}/demo-latest.jar"
     update_systemd_config ${PREVIOUS_JAR}
     sudo -n systemctl restart java-app.service
 
     if sudo -n systemctl is-active --quiet java-app.service; then
-        echo "Rollback to version ${PREVIOUS_VERSION} succeeded!" | tee -a ${LOG_FILE}
+        echo "Rollback succeeded!" | tee -a ${LOG_FILE}
     else
         echo "Rollback failed! Manual intervention required." | tee -a ${LOG_FILE}
         exit 1
@@ -71,39 +54,36 @@ rollback() {
 
 # Main deployment logic
 deploy() {
-    NEW_VERSION=$1
-    NEW_VERSION_JAR="${JAR_PATH}/demo-${NEW_VERSION}-SNAPSHOT.jar"
+    NEW_VERSION_JAR="${JAR_PATH}/demo-$1-SNAPSHOT.jar"
     
     if [ ! -f "${NEW_VERSION_JAR}" ]; then
         echo "Specified version ${NEW_VERSION_JAR} does not exist. Exiting." | tee -a ${LOG_FILE}
         exit 1
     fi
 
-    get_versions
-
-    # Check if this is the first deployment or if we need to update links
+    # If this is the first deployment, just link the new version as latest
     if [ -z "$LATEST_JAR" ]; then
-        # First deployment
         echo "First deployment: Linking ${NEW_VERSION_JAR} as the latest version." | tee -a ${LOG_FILE}
         sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"
+        update_systemd_config ${NEW_VERSION_JAR}
     else
-        # Backup the current latest as previous
+        # Update symbolic links
         echo "Deploying new version: ${NEW_VERSION_JAR}" | tee -a ${LOG_FILE}
         sudo -n mv ${LATEST_JAR} ${JAR_PATH}/demo-previous.jar  # Backup the current latest as previous
         sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"  # Set new jar as the latest
+        
+        update_systemd_config ${NEW_VERSION_JAR}
     fi
-
-    update_systemd_config ${NEW_VERSION_JAR}
 
     # Start or restart the service
     sudo -n systemctl restart java-app.service
 
     # Check if the service started successfully
     if ! sudo -n systemctl is-active --quiet java-app.service; then
-        echo "Deployment of version ${NEW_VERSION} failed! Rolling back..." | tee -a ${LOG_FILE}
+        echo "Deployment of version $1 failed! Rolling back..." | tee -a ${LOG_FILE}
         rollback
     else
-        echo "Deployment of version ${NEW_VERSION} succeeded!" | tee -a ${LOG_FILE}
+        echo "Deployment of version $1 succeeded!" | tee -a ${LOG_FILE}
     fi
 }
 
