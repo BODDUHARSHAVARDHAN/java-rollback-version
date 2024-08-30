@@ -5,9 +5,11 @@ JAR_PATH="/opt/java-app"
 SERVICE_FILE="/etc/systemd/system/java-app.service"
 LOG_FILE="/var/log/java-app-deployment.log"
 
-# Detect the latest and previous JAR files
-LATEST_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 1)  # Most recent JAR file
-PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 2 | tail -n 1)  # Second most recent JAR file
+# Function to get the latest and previous JAR files
+get_versions() {
+    LATEST_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 1)  # Most recent JAR file
+    PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 2 | tail -n 1)  # Second most recent JAR file
+}
 
 # Function to update systemd configuration
 update_systemd_config() {
@@ -34,18 +36,20 @@ EOL
 
 # Function to handle rollback
 rollback() {
+    get_versions
     if [ -z "$PREVIOUS_JAR" ]; then
         echo "No previous version available for rollback. Manual intervention required." | tee -a ${LOG_FILE}
         exit 1
     fi
 
-    echo "Rolling back to previous version: ${PREVIOUS_JAR}" | tee -a ${LOG_FILE}
+    PREVIOUS_VERSION=$(basename ${PREVIOUS_JAR} | sed 's/demo-\(.*\)-SNAPSHOT.jar/\1/')
+    echo "Rolling back to previous version: ${PREVIOUS_JAR} (${PREVIOUS_VERSION})" | tee -a ${LOG_FILE}
     sudo -n ln -sf ${PREVIOUS_JAR} "${JAR_PATH}/demo-latest.jar"
     update_systemd_config ${PREVIOUS_JAR}
     sudo -n systemctl restart java-app.service
 
     if sudo -n systemctl is-active --quiet java-app.service; then
-        echo "Rollback succeeded!" | tee -a ${LOG_FILE}
+        echo "Rollback to version ${PREVIOUS_VERSION} succeeded!" | tee -a ${LOG_FILE}
     else
         echo "Rollback failed! Manual intervention required." | tee -a ${LOG_FILE}
         exit 1
@@ -60,6 +64,8 @@ deploy() {
         echo "Specified version ${NEW_VERSION_JAR} does not exist. Exiting." | tee -a ${LOG_FILE}
         exit 1
     fi
+
+    get_versions
 
     # If this is the first deployment, just link the new version as latest
     if [ -z "$LATEST_JAR" ]; then
