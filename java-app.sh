@@ -28,8 +28,23 @@ Restart=always
 WantedBy=multi-user.target
 EOL
 
+    # Check if the service file was updated successfully
+    if [ $? -ne 0 ]; then
+        echo "Failed to update systemd configuration." | tee -a ${LOG_FILE}
+        exit 1
+    fi
+
     sudo -n systemctl daemon-reload
+    if [ $? -ne 0 ]; then
+        echo "Failed to reload systemd daemon." | tee -a ${LOG_FILE}
+        exit 1
+    fi
+
     sudo -n systemctl enable java-app.service
+    if [ $? -ne 0 ]; then
+        echo "Failed to enable systemd service." | tee -a ${LOG_FILE}
+        exit 1
+    fi
 }
 
 # Function to handle rollback
@@ -43,6 +58,10 @@ rollback() {
     sudo -n ln -sf ${PREVIOUS_JAR} "${JAR_PATH}/demo-latest.jar"
     update_systemd_config ${PREVIOUS_JAR}
     sudo -n systemctl restart java-app.service
+    if [ $? -ne 0 ]; then
+        echo "Failed to restart systemd service after rollback." | tee -a ${LOG_FILE}
+        exit 1
+    fi
 
     if sudo -n systemctl is-active --quiet java-app.service; then
         echo "Rollback succeeded!" | tee -a ${LOG_FILE}
@@ -77,6 +96,10 @@ deploy() {
 
     # Start or restart the service
     sudo -n systemctl restart java-app.service
+    if [ $? -ne 0 ]; then
+        echo "Failed to restart systemd service." | tee -a ${LOG_FILE}
+        rollback
+    fi
 
     # Check if the service started successfully
     if ! sudo -n systemctl is-active --quiet java-app.service; then
