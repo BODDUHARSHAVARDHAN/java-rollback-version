@@ -6,8 +6,8 @@ SERVICE_FILE="/etc/systemd/system/java-app.service"
 LOG_FILE="/var/log/java-app-deployment.log"
 
 # Detect the latest and previous JAR files
-LATEST_JAR=$(ls -t ${JAR_PATH}/demo-latest.jar 2>/dev/null | head -n 1)  # Most recent JAR file (linked as latest)
-PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-previous.jar 2>/dev/null | head -n 1)  # Previous JAR file (linked as previous)
+LATEST_JAR=$(ls -t ${JAR_PATH}/demo-latest.jar 2>/dev/null)  # Most recent JAR file (linked as latest)
+PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-previous.jar 2>/dev/null)  # Previous JAR file (linked as previous)
 
 # Function to update systemd configuration
 update_systemd_config() {
@@ -20,7 +20,7 @@ Description=Java Application Service
 After=network.target
 
 [Service]
-ExecStart=/bin/java -jar ${jar_file}
+ExecStart=bin/java -jar ${jar_file}
 User=harsha
 Restart=always
 
@@ -66,15 +66,16 @@ deploy() {
         sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"
         update_systemd_config ${NEW_VERSION_JAR}
     else
-        # Update symbolic links
+        # Backup the current latest as previous
         echo "Deploying new version: ${NEW_VERSION_JAR}" | tee -a ${LOG_FILE}
-        sudo -n cp ${LATEST_JAR} ${JAR_PATH}/demo-previous.jar  # Backup the current latest as previous
-        sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"  # Set new jar as the latest
+        sudo -n cp ${LATEST_JAR} ${JAR_PATH}/demo-previous.jar
         
+        # Set new jar as the latest
+        sudo -n ln -sf ${NEW_VERSION_JAR} "${JAR_PATH}/demo-latest.jar"
         update_systemd_config ${NEW_VERSION_JAR}
     fi
 
-    # Start or restart the service
+    # Restart the service
     sudo -n systemctl restart java-app.service
 
     # Check if the service started successfully
