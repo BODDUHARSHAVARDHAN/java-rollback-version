@@ -11,6 +11,12 @@ get_versions() {
     PREVIOUS_JAR=$(ls -t ${JAR_PATH}/demo-*.jar 2>/dev/null | head -n 2 | tail -n 1)  # Second most recent JAR file
 }
 
+# Function to extract version number from JAR filename
+extract_version() {
+    local jar_file=$1
+    echo $(basename ${jar_file} | sed 's/demo-\(.*\)-SNAPSHOT.jar/\1/')
+}
+
 # Function to update systemd configuration
 update_systemd_config() {
     local jar_file=$1
@@ -42,7 +48,8 @@ rollback() {
         exit 1
     fi
 
-    PREVIOUS_VERSION=$(basename ${PREVIOUS_JAR} | sed 's/demo-\(.*\)-SNAPSHOT.jar/\1/')
+    # Extract version number from the previous JAR file
+    PREVIOUS_VERSION=$(extract_version ${PREVIOUS_JAR})
     echo "Rolling back to previous version: ${PREVIOUS_JAR} (${PREVIOUS_VERSION})" | tee -a ${LOG_FILE}
     sudo -n ln -sf ${PREVIOUS_JAR} "${JAR_PATH}/demo-latest.jar"
     update_systemd_config ${PREVIOUS_JAR}
