@@ -17,7 +17,7 @@ Description=Java Application Service
 After=network.target
 
 [Service]
-ExecStart=/bin/java -jar ${jar_file}
+ExecStart=/usr/bin/java -jar ${jar_file}
 User=harsha
 Restart=always
 
