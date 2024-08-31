@@ -17,7 +17,7 @@ Description=Java Application Service
 After=network.target
 
 [Service]
-ExecStart=/bin/java -jar ${jar_file}
+ExecStart=/usr/bin/java -jar ${jar_file}
 User=harsha
 Restart=always
 
@@ -38,9 +38,9 @@ else
     # Normal Deployment: Use the new version
     NEW_JAR="${JAR_PATH}/demo-$1-SNAPSHOT.jar"
 
-    # Simulate failure for version 0.0.2
-    if [ "$1" == "0.0.2" ]; then
-        echo "Simulating failure for version 0.0.2..."
+    # Check for the FORCE_FAILURE environment variable
+    if [ ! -z "$FORCE_FAILURE" ]; then
+        echo "Simulating failure as FORCE_FAILURE is set..."
         exit 1  # Non-zero exit code to simulate failure
     fi
     
