@@ -37,6 +37,12 @@ if [ "$1" == "rollback" ]; then
 else
     # Normal Deployment: Use the new version
     NEW_JAR="${JAR_PATH}/demo-$1-SNAPSHOT.jar"
+
+    # Simulate failure for version 0.0.2
+    if [ "$1" == "0.0.2" ]; then
+        echo "Simulating failure for version 0.0.2..."
+        exit 1  # Non-zero exit code to simulate failure
+    fi
     
     # Update symbolic links
     echo "Deploying new version: ${NEW_JAR}"
