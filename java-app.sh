@@ -37,12 +37,6 @@ if [ "$1" == "rollback" ]; then
 else
     # Normal Deployment: Use the new version
     NEW_JAR="${JAR_PATH}/demo-$1-SNAPSHOT.jar"
-
-    # Check for the FORCE_FAILURE environment variable
-    if [ ! -z "$FORCE_FAILURE" ]; then
-        echo "Simulating failure as FORCE_FAILURE is set..."
-        exit 1  # Non-zero exit code to simulate failure
-    fi
     
     # Update symbolic links
     echo "Deploying new version: ${NEW_JAR}"
