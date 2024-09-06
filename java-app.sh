@@ -11,7 +11,7 @@ update_systemd_config() {
     local jar_file=$1
     echo "Updating systemd configuration to use $jar_file..."
     
-    tee ${SERVICE_FILE} > /dev/null <<EOL
+   sudo tee ${SERVICE_FILE} > /dev/null <<EOL
 [Unit]
 Description=Java Application Service
 After=network.target
@@ -25,14 +25,14 @@ Restart=always
 WantedBy=multi-user.target
 EOL
 
-    systemctl daemon-reload
-    systemctl enable java-app.service
+   sudo systemctl daemon-reload
+   sudo systemctl enable java-app.service
 }
 
 if [ "$1" == "rollback" ]; then
     # Rollback: Switch to the previous version
     echo "Rolling back to previous version..."
-    sudo -n ln -sf ${SYMLINK_PREVIOUS} ${SYMLINK_LATEST}
+    sudo ln -sf ${SYMLINK_PREVIOUS} ${SYMLINK_LATEST}
     update_systemd_config ${SYMLINK_LATEST}
 else
     # Normal Deployment: Use the new version
@@ -40,11 +40,11 @@ else
     
     # Update symbolic links
     echo "Deploying new version: ${NEW_JAR}"
-    mv ${SYMLINK_LATEST} ${SYMLINK_PREVIOUS}  # Backup the current latest as previous
-    ln -sf ${NEW_JAR} ${SYMLINK_LATEST}  # Set new jar as the latest
+    sudo mv ${SYMLINK_LATEST} ${SYMLINK_PREVIOUS}  # Backup the current latest as previous
+    sudo ln -sf ${NEW_JAR} ${SYMLINK_LATEST}  # Set new jar as the latest
     
     update_systemd_config ${SYMLINK_LATEST}
 fi
 
 # Start or restart the service
-systemctl restart java-app.service
+sudo systemctl restart java-app.service
