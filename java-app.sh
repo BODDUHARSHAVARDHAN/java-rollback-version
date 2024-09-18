@@ -1,50 +1,72 @@
-#!/bin/bash
+#!/bin/sh
+SERVICE_NAME=shipper-application.jar
+SYMLINK_PATH=/opt/java-app/latest.jar
+PREVIOUS_SYMLINK_PATH=/opt/java-app/previous.jar
+PID_PATH_NAME=/tmp/shipper-application.jar-pid
+LOG_PATH=/var/log/stage/shipper-application.log
 
-# Variables
-JAR_PATH="/opt/java-app"
-SYMLINK_LATEST="${JAR_PATH}/demo-latest.jar"
-SYMLINK_PREVIOUS="${JAR_PATH}/demo-previous.jar"
-SERVICE_FILE="/etc/systemd/system/java-app.service"
-
-# Function to update systemd configuration
-update_systemd_config() {
-    local jar_file=$1
-    echo "Updating systemd configuration to use $jar_file..."
-    
-   sudo tee ${SERVICE_FILE} > /dev/null <<EOL
-[Unit]
-Description=Java Application Service
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/java -jar /opt/java-app/demo-latest.jar
-User=harsha
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOL
-
-   sudo systemctl daemon-reload
-   sudo systemctl enable java-app.service
+start_service() {
+    echo "Starting $SERVICE_NAME ..."
+    if [ ! -f $PID_PATH_NAME ]; then
+        nohup java -jar $SYMLINK_PATH --spring.config.location=/home/fleetenable/stage/java-shipper-application/application.properties >> $LOG_PATH 2>&1 & echo $! > $PID_PATH_NAME
+        if [ $? -eq 0 ]; then
+            echo "$SERVICE_NAME started ..."
+        else
+            echo "Failed to start $SERVICE_NAME. Rolling back to previous version..."
+            rollback
+        fi
+    else
+        echo "$SERVICE_NAME is already running ..."
+    fi
 }
 
-if [ "$1" == "rollback" ]; then
-    # Rollback: Switch to the previous version
-    echo "Rolling back to previous version..."
-    sudo ln -sf ${SYMLINK_PREVIOUS} ${SYMLINK_LATEST}
-    update_systemd_config ${SYMLINK_LATEST}
-else
-    # Normal Deployment: Use the new version
-    NEW_JAR="${JAR_PATH}/demo-$1-SNAPSHOT.jar"
-    
-    # Update symbolic links
-    echo "Deploying new version: ${NEW_JAR}"
-    sudo mv ${SYMLINK_LATEST} ${SYMLINK_PREVIOUS}  # Backup the current latest as previous
-    sudo ln -sf ${NEW_JAR} ${SYMLINK_LATEST}  # Set new jar as the latest
-    
-    update_systemd_config ${SYMLINK_LATEST}
-fi
+stop_service() {
+    if [ -f $PID_PATH_NAME ]; then
+        PID=$(cat $PID_PATH_NAME)
+        echo "$SERVICE_NAME stopping ..."
+        kill $PID
+        echo "$SERVICE_NAME stopped ..."
+        rm $PID_PATH_NAME
+    else
+        echo "$SERVICE_NAME is not running ..."
+    fi
+}
 
-# Start or restart the service
-sudo systemctl restart java-app.service
+restart_service() {
+    if [ -f $PID_PATH_NAME ]; then
+        PID=$(cat $PID_PATH_NAME)
+        echo "$SERVICE_NAME stopping ..."
+        kill $PID
+        echo "$SERVICE_NAME stopped ..."
+        rm $PID_PATH_NAME
+    else
+        echo "$SERVICE_NAME is not running ..."
+    fi
+    echo "$SERVICE_NAME starting ..."
+    start_service
+}
+
+rollback() {
+    if [ -L $PREVIOUS_SYMLINK_PATH ]; then
+        echo "Rolling back to previous version..."
+        # Remove the current symlink
+        rm $SYMLINK_PATH
+        # Create a new symlink pointing to the previous version
+        ln -s $(readlink -f $PREVIOUS_SYMLINK_PATH) $SYMLINK_PATH
+        start_service
+    else
+        echo "No previous version available for rollback."
+    fi
+}
+
+case $1 in
+start)
+    start_service
+    ;;
+stop)
+    stop_service
+    ;;
+restart)
+    restart_service
+    ;;
+esac
