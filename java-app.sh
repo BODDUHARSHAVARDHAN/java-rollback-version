@@ -8,7 +8,7 @@ LOG_PATH=/var/log/stage/shipper-application.log
 start_service() {
     echo "Starting $SERVICE_NAME ..."
     if [ ! -f $PID_PATH_NAME ]; then
-        nohup java -jar $SYMLINK_PATH --spring.config.location=/home/fleetenable/stage/java-shipper-application/application.properties >> $LOG_PATH 2>&1 & echo $! > $PID_PATH_NAME
+        nohup java -jar $SYMLINK_PATH --spring.config.location=/opt/java-app/application-stage.properties >> $LOG_PATH 2>&1 & echo $! > $PID_PATH_NAME
         if [ $? -eq 0 ]; then
             echo "$SERVICE_NAME started ..."
         else
