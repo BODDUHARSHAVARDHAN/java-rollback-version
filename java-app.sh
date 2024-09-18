@@ -1,7 +1,7 @@
 #!/bin/sh
 SERVICE_NAME=shipper-application.jar
-SYMLINK_PATH=/opt/java-app/latest.jar
-PREVIOUS_SYMLINK_PATH=/opt/java-app/previous.jar
+SYMLINK_PATH=/opt/java-app/demo-latest.jar
+PREVIOUS_SYMLINK_PATH=/opt/java-app/demo-previous.jar
 PID_PATH_NAME=/tmp/shipper-application.jar-pid
 LOG_PATH=/var/log/stage/shipper-application.log
 
